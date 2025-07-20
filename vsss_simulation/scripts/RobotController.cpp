@@ -10,10 +10,12 @@
 #include <tf2_ros/buffer.h>
 #include "vsss_simulation/Kinematic.hpp"
 #include "vsss_simulation/Line.hpp"
+#include "vsss_simulation/UnivectorF.hpp"
 #include <iostream>  
 #include <string> 
 using std::placeholders::_1;
 using namespace tf2;
+using namespace std;
 
 
 void printOdom(const nav_msgs::msg::Odometry::SharedPtr  & msg, const rclcpp::Logger & logger)
@@ -40,6 +42,12 @@ void SetTransformFromOdom(const nav_msgs::msg::Odometry::SharedPtr& msg, Transfo
       o.setOrigin(pos);
       o.setRotation(rotation);
       return;
+}
+
+void Vector3fromMSG(geometry_msgs::msg::TransformStamped&a, Vector3& o ){
+  o[0] = a.transform.translation.x;
+  o[1] = a.transform.translation.y;
+  o[2] = a.transform.translation.z;
 }
 
 
@@ -69,25 +77,37 @@ class Robot_Controller : public rclcpp::Node
 
   private:
     void Main(){
-        //Look for the goal
-
-        geometry_msgs::msg::TransformStamped goal;
-        try {
-          t = tf_buffer_->lookupTransform(
-            "goal_tf", "world",
-            tf2::TimePointZero);
-        } catch (const tf2::TransformException & ex) {
-          RCLCPP_INFO(
-            this->get_logger(), "Could not transform %s to %s: %s",
-            "goal_tf", "world", ex.what());
-          return;
-        }
+        //Update class 
 
         kinematic.setTrans(self_transform);
-       
-        Vector3 result = self_transform.getOrigin() - ball_transform.getOrigin();
         
-        
+
+        //Look for the goal
+
+        geometry_msgs::msg::TransformStamped goal_;
+        try {
+          goal_ = tf_buffer_->lookupTransform(
+            "world", "goal_pos",
+            TimePointZero);
+        } catch (const TransformException & ex) {
+          RCLCPP_INFO(
+            this->get_logger(), "Could not transform %s to %s: %s",
+            "world", "goal_pos", ex.what());
+          return;
+        }
+      //Set the optimal trayectory
+        Vector3 goal; 
+        Vector3fromMSG(goal_,goal);
+        Line optimalPath (ball_transform.getOrigin(), goal);
+        //Get angle considering the ball as the objective;
+        Vector3 robot_2_ball = self_transform.getOrigin() - ball_transform.getOrigin(); 
+        //obtain the angle from the functions
+        float robot_t_ball = atan2(robot_2_ball[1], robot_2_ball[0]);
+        cout<<robot_t_ball<<endl;
+        float theta_res = phiTuf(robot_t_ball, self_transform.getOrigin(),ball_transform.getOrigin(),  optimalPath); 
+        //transform the angle to a vector
+        Vector3 result =  Theta2Vector(theta_res);
+        //Publish
         self_vel_pub->publish(kinematic.result_to_msg(result));
     }
     void refresh_ball_odom(const nav_msgs::msg::Odometry::SharedPtr msg) 
@@ -109,10 +129,8 @@ class Robot_Controller : public rclcpp::Node
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr self_sub;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr self_vel_pub;
     rclcpp::TimerBase::SharedPtr main_timer;
-    rclcpp::TimerBase::SharedPtr goal_timer;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
-    geometry_msgs::msg::TransformStamped t;
 };
 
 int main(int argc, char * argv[])

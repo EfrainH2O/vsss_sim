@@ -1,5 +1,7 @@
 #include "vsss_simulation/UnivectorF.hpp"
 
+float de = 0.6;
+float kr = 0.5;
 
 float phiH(float rho,  float theta, bool cw)    //Hyperbolic angle
 {
@@ -54,6 +56,9 @@ float phiTuf(float theta, Vector3 p ,Vector3 b,  Line& trajectory) { // Move to 
 
     //Distance from the robot to the trayectory line
     float distance_from_trayectory = trajectory.Dist(p);
+    if(ro_l >= ro_r){
+        distance_from_trayectory *= -1;
+    }
     //merge in between
     Vector3 spiral_merge = (abs(distance_from_trayectory+de) * nh_ccw + abs(distance_from_trayectory-de) * nh_cw) / (2 * de) ;
     //Final angle depending from the distance to the trayectory

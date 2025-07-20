@@ -8,8 +8,7 @@
 using namespace tf2;
 using namespace std;
 
-float de = 5;
-float kr = 3;
+
 
 float phiH(float rho,  float theta, bool cw);    //Hyperbolic angle
 

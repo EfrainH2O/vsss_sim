@@ -121,21 +121,25 @@ def generate_launch_description():
                 remappings=[],
             ),
         #Spawn the goal transform
-        Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            output = "screen",
-            name='goal_tf',
-            arguments=[
-                "-3.0",
-                "0.0",
-                "0.0",     
-                "0.0",
-                "0.0",
-                "0.0",
-                "world",
-                "goal_pos"
-            ]
-        )
+        TimerAction(
+            period=2.0,
+            actions=[Node(
+                    package='tf2_ros',
+                    executable='static_transform_publisher',
+                    output = "screen",
+                    name='goal_tf',
+                    arguments=[
+                        "-3.0",
+                        "0.0",
+                        "0.0",     
+                        "0",
+                        "0",
+                        "0",
+                        "world",
+                        "goal_pos"
+                    ]
+                )]
+            )
+        
 
     ])
