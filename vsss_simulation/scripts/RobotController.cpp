@@ -6,6 +6,8 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include "geometry_msgs/msg/twist.hpp"
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "tf2_ros/transform_listener.h"
+#include <tf2_ros/buffer.h>
 #include "vsss_simulation/Kinematic.hpp"
 #include "vsss_simulation/Line.hpp"
 #include <iostream>  
@@ -54,8 +56,12 @@ class Robot_Controller : public rclcpp::Node
       
       ball_sub = this->create_subscription<nav_msgs::msg::Odometry>("ball/odom", 10, std::bind(&Robot_Controller::refresh_ball_odom, this, _1));
       self_sub = this->create_subscription<nav_msgs::msg::Odometry>(robot_topic+"/odom", 10, std::bind(&Robot_Controller::refresh_self_odom, this, _1));
+
       self_vel_pub = this->create_publisher<geometry_msgs::msg::Twist>(robot_topic+"/cmd_vel",500 );
       main_timer = this->create_wall_timer(std::chrono::milliseconds(50), std::bind(&Robot_Controller::Main, this));
+
+      tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
       RCLCPP_INFO(get_logger(), "Robot Node With ID: '%i' .", id);
 
       
@@ -63,6 +69,20 @@ class Robot_Controller : public rclcpp::Node
 
   private:
     void Main(){
+        //Look for the goal
+
+        geometry_msgs::msg::TransformStamped goal;
+        try {
+          t = tf_buffer_->lookupTransform(
+            "goal_tf", "world",
+            tf2::TimePointZero);
+        } catch (const tf2::TransformException & ex) {
+          RCLCPP_INFO(
+            this->get_logger(), "Could not transform %s to %s: %s",
+            "goal_tf", "world", ex.what());
+          return;
+        }
+
         kinematic.setTrans(self_transform);
        
         Vector3 result = self_transform.getOrigin() - ball_transform.getOrigin();
@@ -89,6 +109,10 @@ class Robot_Controller : public rclcpp::Node
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr self_sub;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr self_vel_pub;
     rclcpp::TimerBase::SharedPtr main_timer;
+    rclcpp::TimerBase::SharedPtr goal_timer;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+    geometry_msgs::msg::TransformStamped t;
 };
 
 int main(int argc, char * argv[])

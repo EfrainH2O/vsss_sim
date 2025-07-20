@@ -110,6 +110,8 @@ def generate_launch_description():
             ]
         ),
 
+
+        #Spawn Node to see the ball
         Node(
                 package="odom_to_tf_ros2",
                 executable="odom_to_tf",
@@ -117,6 +119,23 @@ def generate_launch_description():
                 output="screen",
                 parameters=[config_file_path],
                 remappings=[],
-            )
+            ),
+        #Spawn the goal transform
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            output = "screen",
+            name='goal_tf',
+            arguments=[
+                "-3.0",
+                "0.0",
+                "0.0",     
+                "0.0",
+                "0.0",
+                "0.0",
+                "world",
+                "goal_pos"
+            ]
+        )
 
     ])
